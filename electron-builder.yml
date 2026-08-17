@@ -22,6 +22,14 @@ asarUnpack:
   # 必须让整棵树以真实目录存在（app.asar.unpacked/node_modules）。
   - node_modules/**
 
+extraResources:
+  # 运行时资源：图标（托盘/通知/窗口）需在打包版 resources/assets 下真实存在
+  - from: assets
+    to: assets
+    filter:
+      - "*.png"
+      - "*.ico"
+
 win:
   target:
     - nsis

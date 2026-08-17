@@ -1,0 +1,4 @@
+# DSH Studio 外观插件：把客户端插件插入 web profile 的浏览器 roster
+- insert:
+    - id: studio-appearance
+      name: 'dsh-studio-appearance'

@@ -29,12 +29,25 @@ app.commandLine.appendSwitch('lang', 'zh-CN')
 app.setName('DSH Studio')
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-/** 开发/构建态的应用图标（打包后由 electron-builder 注入，见 Phase 5） */
-const devIconPath = path.join(here, '..', '..', 'assets', 'icon-256.png')
-/** Windows 优先用 .ico（任务栏图标更稳定） */
-const devIcoPath = path.join(here, '..', '..', 'assets', 'icon.ico')
 /** preload 脚本（CJS 输出） */
 const preloadPath = path.join(here, '..', 'preload', 'index.cjs')
+
+/** 运行时图标解析：打包版 resources/assets（extraResources）→ resources 根 → 开发版项目 assets */
+function resolveIcon(kind: 'ico' | 'png'): string | null {
+  const names = kind === 'ico' ? ['icon.ico'] : ['icon-256.png']
+  const candidates: string[] = []
+  for (const name of names) {
+    candidates.push(
+      path.join(process.resourcesPath ?? '', 'assets', name),
+      path.join(process.resourcesPath ?? '', name),
+      path.join(here, '..', '..', 'assets', name)
+    )
+  }
+  for (const file of candidates) {
+    if (existsSync(file)) return file
+  }
+  return null
+}
 
 const SPLASH_HTML = `<!doctype html>
 <html><head><meta charset="utf-8"><title>DSH Studio</title>
@@ -111,14 +124,11 @@ if (!gotLock) {
 
   /** 系统通知（带鲸鱼图标） */
   function notify(body: string): void {
+    const icon = resolveIcon('ico') ?? resolveIcon('png')
     new Notification({
       title: 'DSH Studio',
       body,
-      ...(existsSync(devIcoPath)
-        ? { icon: devIcoPath }
-        : existsSync(devIconPath)
-          ? { icon: devIconPath }
-          : {})
+      ...(icon ? { icon } : {})
     }).show()
   }
 
@@ -275,11 +285,10 @@ if (!gotLock) {
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1115' : '#f7f8fa',
       show: false,
       ...restoreBounds,
-      ...(existsSync(devIcoPath)
-        ? { icon: devIcoPath }
-        : existsSync(devIconPath)
-          ? { icon: devIconPath }
-          : {}),
+      ...(() => {
+        const icon = resolveIcon('ico') ?? resolveIcon('png')
+        return icon ? { icon } : {}
+      })(),
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
@@ -438,6 +447,29 @@ if (!gotLock) {
     }
   }
 
+  /** 侧边栏恢复：点击官方折叠开关（aria-label「打开侧边栏」），找不到时刷新兜底 */
+  const SIDEBAR_CLICKER = `(() => {
+    const btn = document.querySelector('button[aria-label="打开侧边栏"], button[aria-label="Open sidebar"]')
+    if (btn) { btn.click(); return '已恢复侧边栏' }
+    return '未找到侧边栏开关'
+  })()`
+
+  async function showSidebar(): Promise<void> {
+    showMainWindow()
+    const win = mainWindow
+    if (!win || win.isDestroyed()) return
+    try {
+      const result = (await win.webContents.executeJavaScript(SIDEBAR_CLICKER, true)) as string
+      console.log('[sidebar]', result)
+      if (result === '未找到侧边栏开关') {
+        win.webContents.reload()
+        console.log('[sidebar] 已刷新页面兜底')
+      }
+    } catch {
+      /* 页面未就绪时忽略 */
+    }
+  }
+
   function buildAppMenu(): void {
     const template: Electron.MenuItemConstructorOptions[] = [
       {
@@ -458,6 +490,7 @@ if (!gotLock) {
       {
         label: '视图',
         submenu: [
+          { label: '显示侧边栏', click: () => void showSidebar() },
           { label: '重新加载', role: 'reload' },
           { label: '开发者工具', role: 'toggleDevTools' }
         ]
@@ -586,6 +619,7 @@ if (!gotLock) {
       onShow: () => showMainWindow(),
       onNewTask: () => showMainWindow(),
       onOpenSettings: () => void openSettings(),
+      onShowSidebar: () => void showSidebar(),
       onOpenWorkspace: () => void openInShell(launchDir),
       onQuit: () => {
         quitting = true

@@ -1,6 +1,6 @@
 {
   "name": "dsh-studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DSH Studio — DeepSeek Harness 桌面客户端（原生窗口封装 dsh Web UI）",
   "main": "./out/main/index.js",
   "type": "module",
