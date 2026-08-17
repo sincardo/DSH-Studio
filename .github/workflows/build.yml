@@ -6,15 +6,20 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
+      # 一个平台失败不取消另一个平台
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
-            script: npm run dist:win
+            target: win nsis
           - os: macos-latest
-            script: npm run dist:mac
+            target: mac dmg
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -32,12 +37,12 @@ jobs:
           npm run build
           npm run build:plugin
 
-      - name: 打包
+      - name: 打包（不发布，产物由下一步统一上传）
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ${{ matrix.script }}
+        run: npx electron-builder --${{ matrix.target }} --publish never
 
-      - name: 上传产物
+      - name: 上传产物并发布
         uses: softprops/action-gh-release@v2
         with:
           files: |
