@@ -1,0 +1,6 @@
+node_modules/
+out/
+dist/
+assets/
+package-lock.json
+.npm-cache/

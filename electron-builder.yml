@@ -1,0 +1,51 @@
+# DSH Studio — electron-builder 打包配置
+appId: com.dshstudio.app
+productName: DSH Studio
+copyright: MIT License
+
+directories:
+  output: dist
+  buildResources: assets
+
+# 跳过原生模块重建：web profile 不加载 node-pty（唯一非 N-API 原生模块），
+# 其余原生模块（sharp/koffi/node-addon-require-builtin）均为 N-API 预编译、ABI 无关。
+npmRebuild: false
+
+files:
+  - out/**
+  - package.json
+  - node_modules/**
+
+asarUnpack:
+  # 全部解包：dsh 引导的官方回退目录（healProfilesModuleFallback）会把依赖闭包
+  # 符号链接到「安装锚点」所在 node_modules —— junction 无法指向 asar 内路径，
+  # 必须让整棵树以真实目录存在（app.asar.unpacked/node_modules）。
+  - node_modules/**
+
+win:
+  target:
+    - nsis
+  icon: assets/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DSH Studio
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+mac:
+  target:
+    - dmg
+  icon: assets/icon-1024.png
+  category: public.app-category.developer-tools
+  artifactName: ${productName}-${version}.${ext}
+
+dmg:
+  artifactName: ${productName}-${version}.${ext}
+
+publish:
+  provider: github
+  owner: sincardo
+  repo: dsh-studio
